@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LoreWrench</title>
+</head>
+<body>
+    <h1>LoreWrench - Character Creator</h1>
+
+    <input id="name" placeholder="Character Name"><br><br>
+    <textarea id="bio" placeholder="Character Bio"></textarea><br><br>
+
+    <button onclick="createCharacter()">Create</button>
+
+    <h2>Characters</h2>
+    <ul id="list"></ul>
+
+    <script>
+        async function createCharacter() {
+            const name = document.getElementById("name").value;
+            const bio = document.getElementById("bio").value;
+
+            await fetch("http://127.0.0.1:8000/character", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, bio })
+            });
+
+            loadCharacters();
+        }
+
+        async function loadCharacters() {
+            const res = await fetch("http://127.0.0.1:8000/characters");
+            const data = await res.json();
+
+            const list = document.getElementById("list");
+            list.innerHTML = "";
+
+            data.forEach(c => {
+                const li = document.createElement("li");
+                li.textContent = c.name + " - " + c.bio;
+                list.appendChild(li);
+            });
+        }
+
+        loadCharacters();
+    </script>
+</body>
+</html>
