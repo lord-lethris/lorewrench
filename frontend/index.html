@@ -9,12 +9,76 @@
     <input id="name" placeholder="Character Name"><br><br>
     <textarea id="bio" placeholder="Character Bio"></textarea><br><br>
 
-    <button onclick="createCharacter()">Create</button>
+    <h2>Creative Controls</h2>
+
+    <label>Drama:</label>
+    <input type="range" id="drama" min="0" max="100" value="50">
+    <span id="dramaValue">50</span><br><br>
+
+    <label>Tone (Dark ↔ Light):</label>
+    <input type="range" id="tone" min="0" max="100" value="50">
+    <span id="toneValue">50</span><br><br>
+
+    <button onclick="generateCharacter()">Generate Character (AI)</button><br>
+    <button onclick="createCharacter()">Create Character</button>
 
     <h2>Characters</h2>
-    <ul id="list"></ul>
+    <ul id="characterList"></ul>
+
+    <hr>
+
+    <h2>Create Relationship</h2>
+
+    <select id="char1"></select>
+    <select id="char2"></select>
+
+    <input id="relType" placeholder="Relationship (ally, enemy, etc)">
+    <button onclick="createRelationship()">Link</button>
+
+    <h2>Relationships</h2>
+    <ul id="relationshipList"></ul>
+
+    <hr>
+
+    <h2>Generate Scene</h2>
+
+    <select id="sceneChar1"></select>
+    <select id="sceneChar2"></select>
+
+    <button onclick="generateScene()">Generate Scene</button>
+
+    <pre id="sceneOutput"></pre>
 
     <script>
+        let characters = [];
+
+        const dramaSlider = document.getElementById("drama");
+        const toneSlider = document.getElementById("tone");
+
+        dramaSlider.oninput = () => {
+            document.getElementById("dramaValue").textContent = dramaSlider.value;
+        };
+
+        toneSlider.oninput = () => {
+            document.getElementById("toneValue").textContent = toneSlider.value;
+        };
+
+        async function generateCharacter() {
+            const drama = document.getElementById("drama").value;
+            const tone = document.getElementById("tone").value;
+
+            const res = await fetch("http://127.0.0.1:8000/generate_character", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ drama, tone })
+            });
+
+            const data = await res.json();
+
+            document.getElementById("name").value = data.name;
+            document.getElementById("bio").value = data.bio;
+        }
+
         async function createCharacter() {
             const name = document.getElementById("name").value;
             const bio = document.getElementById("bio").value;
@@ -30,16 +94,94 @@
 
         async function loadCharacters() {
             const res = await fetch("http://127.0.0.1:8000/characters");
+            characters = await res.json();
+
+            const list = document.getElementById("characterList");
+            const char1 = document.getElementById("char1");
+            const char2 = document.getElementById("char2");
+            const sceneChar1 = document.getElementById("sceneChar1");
+            const sceneChar2 = document.getElementById("sceneChar2");
+
+            list.innerHTML = "";
+            char1.innerHTML = "";
+            char2.innerHTML = "";
+            sceneChar1.innerHTML = "";
+            sceneChar2.innerHTML = "";
+
+            characters.forEach(c => {
+                const li = document.createElement("li");
+                li.textContent = `${c.id}: ${c.name} - ${c.bio}`;
+                list.appendChild(li);
+
+                const opt1 = new Option(c.name, c.id);
+                const opt2 = new Option(c.name, c.id);
+
+                char1.add(opt1);
+                char2.add(opt2);
+
+                sceneChar1.add(new Option(c.name, c.id));
+                sceneChar2.add(new Option(c.name, c.id));
+            });
+
+            loadRelationships();
+        }
+
+        async function createRelationship() {
+            const character_id = parseInt(document.getElementById("char1").value);
+            const related_character_id = parseInt(document.getElementById("char2").value);
+            const relationship_type = document.getElementById("relType").value;
+
+            await fetch("http://127.0.0.1:8000/relationship", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    character_id,
+                    related_character_id,
+                    relationship_type
+                })
+            });
+
+            loadRelationships();
+        }
+
+        async function loadRelationships() {
+            const res = await fetch("http://127.0.0.1:8000/relationships");
             const data = await res.json();
 
-            const list = document.getElementById("list");
+            const list = document.getElementById("relationshipList");
             list.innerHTML = "";
 
-            data.forEach(c => {
+            data.forEach(r => {
+                const charA = characters.find(c => c.id === r.character_id);
+                const charB = characters.find(c => c.id === r.related_character_id);
+
                 const li = document.createElement("li");
-                li.textContent = c.name + " - " + c.bio;
+                li.textContent = `${charA?.name} → ${r.relationship_type} → ${charB?.name}`;
                 list.appendChild(li);
             });
+        }
+
+        async function generateScene() {
+            const character1_id = parseInt(document.getElementById("sceneChar1").value);
+            const character2_id = parseInt(document.getElementById("sceneChar2").value);
+
+            const drama = document.getElementById("drama").value;
+            const tone = document.getElementById("tone").value;
+
+            const res = await fetch("http://127.0.0.1:8000/generate_scene", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    character1_id,
+                    character2_id,
+                    drama,
+                   tone
+                })
+            });
+
+            const data = await res.json();
+
+            document.getElementById("sceneOutput").textContent = data.scene;
         }
 
         loadCharacters();
